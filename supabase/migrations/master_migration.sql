@@ -22,6 +22,7 @@ DECLARE
 BEGIN
   FOR tbl, trg IN VALUES
     ('sites',       'trg_after_site_insert'),
+    ('salles',      'trg_after_salle_insert'),
     ('racks',       'trg_after_rack_insert'),
     ('odfs',        'trg_after_odf_insert'),
     ('slots',       'trg_after_slot_insert'),
@@ -146,7 +147,7 @@ CREATE TABLE public.racks (
   updated_at  TIMESTAMPTZ DEFAULT NOW(),
   updated_by  TEXT,
   raison      TEXT,
-  UNIQUE (site_id, name)
+  UNIQUE (salle_id, name)
 );
 
 -- ODFs
@@ -382,7 +383,22 @@ CREATE TRIGGER trg_after_rack_insert
   AFTER INSERT ON public.racks
   FOR EACH ROW EXECUTE FUNCTION fn_after_rack_insert();
 
--- 5d. Site → salle S1 → rack R1  (cascade → ODF via 5c → slot via 5b → ports via 5a)
+-- 5d. Salle → rack R1 (cascade → ODF via 5c → slot via 5b → ports via 5a)
+CREATE OR REPLACE FUNCTION fn_after_salle_insert()
+RETURNS TRIGGER LANGUAGE plpgsql AS $$
+BEGIN
+  INSERT INTO public.racks (id, site_id, salle_id, name)
+  VALUES (NEW.id || '-R1', NEW.site_id, NEW.id, 'R1')
+  ON CONFLICT (id) DO NOTHING;
+  RETURN NEW;
+END;
+$$;
+
+CREATE TRIGGER trg_after_salle_insert
+  AFTER INSERT ON public.salles
+  FOR EACH ROW EXECUTE FUNCTION fn_after_salle_insert();
+
+-- 5e. Site → salle S1 (cascade → rack via 5d → ODF via 5c → slot via 5b → ports via 5a)
 CREATE OR REPLACE FUNCTION fn_after_site_insert()
 RETURNS TRIGGER LANGUAGE plpgsql AS $$
 DECLARE
@@ -391,9 +407,6 @@ BEGIN
   v_salle_id := NEW.id || '-S1';
   INSERT INTO public.salles (id, site_id, name)
   VALUES (v_salle_id, NEW.id, 'S1')
-  ON CONFLICT (id) DO NOTHING;
-  INSERT INTO public.racks (id, site_id, salle_id, name)
-  VALUES (NEW.id || '-S1-R1', NEW.id, v_salle_id, 'R1')
   ON CONFLICT (id) DO NOTHING;
   RETURN NEW;
 END;

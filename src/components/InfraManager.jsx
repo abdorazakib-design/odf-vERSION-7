@@ -60,12 +60,6 @@ export default function InfraManage({ t, TH }) {
         const id = `${form.site_id}-${salleCode}`;
         const { error: eS } = await createSalle({ id, site_id: form.site_id, name: form.name, description: form.description || "" });
         if (eS) { setError(eS.message); return; }
-        // Cascade : crée un rack dans cette salle — ID inclut la salle pour cohérence
-        const siteRackCount = racks.filter(r => r.site_id === form.site_id).length;
-        const rackName = `R${siteRackCount + 1}`;
-        const rackId = `${form.site_id}-${salleCode}-${rackName}`;  // ex: BET-S2-R3
-        const { error: eR } = await createRack({ id: rackId, site_id: form.site_id, salle_id: id, name: rackName });
-        if (eR) { setError(eR.message); return; }
       }
       else if (tab === "racks") {
         if (!form.site_id || !form.salle_id || !form.name) return;
