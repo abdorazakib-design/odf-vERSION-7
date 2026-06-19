@@ -5,7 +5,6 @@ import { Spinner, Bdg } from "./common/UI.jsx";
 export default function Dashboard({ t, TH }) {
   const [stats, setStats] = useState(null);
   const [sites, setSites] = useState([]);
-  const [byOdf, setByOdf] = useState({});
   const [bySite, setBySite] = useState({});
   const [loading, setLoading] = useState(true);
 
@@ -21,7 +20,6 @@ export default function Dashboard({ t, TH }) {
         if (!alive) return;
         setStats(s);
         setSites(si.data || []);
-        const odfMap = {};
         const siteMap = {};
         (pr.data || []).forEach(p => {
           const site = p.slots?.odfs?.racks?.sites;
@@ -42,25 +40,9 @@ export default function Dashboard({ t, TH }) {
             siteMap[siteKey].ports++;
             if (p.statut === "OCCUPE") siteMap[siteKey].actifs++;
           }
-          if (odfKey) {
-            if (!odfMap[odfKey]) {
-              odfMap[odfKey] = {
-                nom: odf?.name || odfKey,
-                type: odf?.odf_type,
-                isActive: odf?.is_active,
-                total: 0,
-                LIBRE: 0,
-                OCCUPE: 0,
-                MAUVAIS: 0
-              };
-            }
-            odfMap[odfKey].total++;
-            odfMap[odfKey][p.statut] = (odfMap[odfKey][p.statut] || 0) + 1;
-          }
         });
         if (!alive) return;
         setBySite(siteMap);
-        setByOdf(odfMap);
       } catch (e) {
       } finally {
         if (alive) setLoading(false);
@@ -73,7 +55,6 @@ export default function Dashboard({ t, TH }) {
   if (loading) return <Spinner TH={TH} />;
 
   const sc = stats?.statusCounts || {};
-  const odfEntries = Object.entries(byOdf);
 
   const portKpis = [
     { st: "LIBRE",   label: "Disponibles", val: sc.LIBRE || 0,   color: TH.text2,  bc: TH.text3 },
@@ -160,96 +141,6 @@ export default function Dashboard({ t, TH }) {
               </div>
             );
           })}
-        </div>
-      )}
-
-      {/* Row 4 — ODF Occupation */}
-      {odfEntries.length > 0 && (
-        <div style={{ ...card, padding: "18px" }}>
-          <div style={{ 
-            fontSize: "11px", 
-            letterSpacing: "2px", 
-            color: TH.text2, 
-            fontWeight: 700, 
-            marginBottom: "14px" 
-          }}>
-            OCCUPATION ODFs
-          </div>
-          <div style={{ 
-            display: "grid", 
-            gridTemplateColumns: "repeat(auto-fill,minmax(200px,1fr))", 
-            gap: "10px" 
-          }}>
-            {odfEntries.map(([id, o]) => {
-              const used = (o.OCCUPE || 0) + (o.MAUVAIS || 0);
-              const pct = o.total ? Math.round(used * 100 / o.total) : 0;
-              const pctColor = pct > 70 ? TH.red : pct > 40 ? TH.gold : TH.green;
-              const isInt = o.type === "INTERNE";
-              const typeBg = isInt ? "rgba(167,139,250,0.12)" : "rgba(59,130,246,0.12)";
-              const typeTx = isInt ? TH.purple : TH.blue;
-              const typeBd = isInt ? "rgba(167,139,250,0.3)" : "rgba(59,130,246,0.3)";
-              return (
-                <div 
-                  key={id} 
-                  style={{
-                    border: `1px solid ${TH.border}`, 
-                    borderRadius: "10px",
-                    padding: "12px 14px", 
-                    background: TH.bgSurface, 
-                    cursor: "pointer", 
-                    transition: "border-color .15s"
-                  }}
-                  onMouseEnter={e => { e.currentTarget.style.borderColor = TH.blue; }}
-                  onMouseLeave={e => { e.currentTarget.style.borderColor = TH.border; }}>
-                  <div style={{ 
-                    display: "flex", 
-                    justifyContent: "space-between", 
-                    alignItems: "center", 
-                    marginBottom: "4px" 
-                  }}>
-                    <span className="font-mono" style={{ 
-                      fontSize: "11px", 
-                      fontWeight: 700, 
-                      color: TH.text1 
-                    }}>{o.nom}</span>
-                    <span style={{
-                      background: typeBg, 
-                      color: typeTx, 
-                      border: `1px solid ${typeBd}`,
-                      borderRadius: "20px", 
-                      padding: "2px 8px", 
-                      fontSize: "9px", 
-                      fontWeight: 700
-                    }}>
-                      ODF {o.type || "EXTERNE"}
-                    </span>
-                  </div>
-                  <div style={{ fontSize: "10px", color: TH.text3, marginBottom: "5px" }}>
-                    {o.isActive ? "Activé" : "Non activé"}
-                  </div>
-                  <div style={{ 
-                    height: "4px", 
-                    background: TH.border, 
-                    borderRadius: "2px", 
-                    overflow: "hidden", 
-                    marginBottom: "4px" 
-                  }}>
-                    <div style={{ 
-                      height: "100%", 
-                      borderRadius: "2px", 
-                      background: `linear-gradient(90deg,${TH.green},${TH.blue})`,
-                      width: `${pct}%`, 
-                      transition: "width .5s" 
-                    }} />
-                  </div>
-                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: "10px" }}>
-                    <span style={{ color: TH.text3 }}>{o.total} ports</span>
-                    <span style={{ fontWeight: 700, color: pctColor }}>{pct}%</span>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
         </div>
       )}
 

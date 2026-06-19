@@ -82,7 +82,7 @@ function OdfSlotsPreview({ odfId, color, TH }) {
 }
 
 /* ─── Sélecteur en cascade Site→Salle→Rack→ODF(→Slot) ─── */
-function InfraSelector({ label, color, onChange, TH, excludeSiteId = "", excludeSalleId = "", forcedSiteId = "", connType = "slot" }) {
+function InfraSelector({ label, color, onChange, TH, excludeSiteId = "", excludeSalleId = "", forcedSiteId = "", connType = "slot", typeLien = "EXTERNE" }) {
   const [sites, setSites] = useState([]);
   const [salles, setSalles] = useState([]);
   const [racks, setRacks] = useState([]);
@@ -128,11 +128,10 @@ function InfraSelector({ label, color, onChange, TH, excludeSiteId = "", exclude
         const odfList = r.data || [];
         if (odfList.length === 0) return;
 
-        // Récupérer les slots, ports, et câbles existants
-        const [slotsRes, portsRes, cablesRes] = await Promise.all([
+        // Récupérer les slots et câbles existants
+        const [slotsRes, cablesRes] = await Promise.all([
           supabase.from("slots").select("id, odf_id").in("odf_id", odfList.map(o => o.id)),
-          supabase.from("ports").select("slot_id, odf_id, statut").in("odf_id", odfList.map(o => o.id)),
-          supabase.from("cables_fibre").select("port_source_id, port_dest_id")
+          supabase.from("cables_fibre").select("port_source_id, port_dest_id, type_lien")
         ]);
 
         const slotsByOdf = {};
@@ -142,12 +141,24 @@ function InfraSelector({ label, color, onChange, TH, excludeSiteId = "", exclude
         });
 
         const occupiedSlots = new Set();
-        (portsRes.data || []).forEach(p => {
-          if (p.statut !== 'LIBRE') occupiedSlots.add(p.slot_id);
-        });
         (cablesRes.data || []).forEach(c => {
           if (c.port_source_id) occupiedSlots.add(c.port_source_id.slice(0, -3));
           if (c.port_dest_id) occupiedSlots.add(c.port_dest_id.slice(0, -3));
+        });
+
+        // Déterminer en temps réel quels ODFs ont déjà des câbles et de quels types ils sont
+        const odfCablesMap = {}; // odf_id -> Set of type_lien of cables connected to it
+        (cablesRes.data || []).forEach(c => {
+          const srcOdf = c.port_source_id ? c.port_source_id.split('_')[0] : null;
+          const dstOdf = c.port_dest_id ? c.port_dest_id.split('_')[0] : null;
+          if (srcOdf) {
+            if (!odfCablesMap[srcOdf]) odfCablesMap[srcOdf] = new Set();
+            odfCablesMap[srcOdf].add(c.type_lien);
+          }
+          if (dstOdf) {
+            if (!odfCablesMap[dstOdf]) odfCablesMap[dstOdf] = new Set();
+            odfCablesMap[dstOdf].add(c.type_lien);
+          }
         });
 
         let filteredOdfs = [];
@@ -155,6 +166,10 @@ function InfraSelector({ label, color, onChange, TH, excludeSiteId = "", exclude
         if (connType === "odf") {
           // Pour ODF entier, TOUS les slots doivent être complètement libres (aucune occupation de ports)
           filteredOdfs = odfList.filter(o => {
+            // Vérifier si le type de l'ODF dans la DB est compatible (vide/NULL, ou correspond au type de connexion demandé)
+            const isCompatibleType = !o.odf_type || o.odf_type === typeLien;
+            if (!isCompatibleType) return false;
+
             const odfSlots = slotsByOdf[o.id] || [];
             if (odfSlots.length === 0) return false;
             return odfSlots.every(slotId => !occupiedSlots.has(slotId));
@@ -162,6 +177,10 @@ function InfraSelector({ label, color, onChange, TH, excludeSiteId = "", exclude
         } else {
           // Pour Slot individuel, au moins 1 slot doit être libre
           filteredOdfs = odfList.filter(o => {
+            // Vérifier si le type de l'ODF dans la DB est compatible (vide/NULL, ou correspond au type de connexion demandé)
+            const isCompatibleType = !o.odf_type || o.odf_type === typeLien;
+            if (!isCompatibleType) return false;
+
             const odfSlots = slotsByOdf[o.id] || [];
             if (odfSlots.length === 0) return false;
             return odfSlots.some(slotId => !occupiedSlots.has(slotId));
@@ -171,7 +190,7 @@ function InfraSelector({ label, color, onChange, TH, excludeSiteId = "", exclude
         setOdfs(filteredOdfs);
       });
     }
-  }, [rack, connType]);
+  }, [rack, connType, typeLien]);
 
   // CASCADE ODF → slots (seulement en mode slot)
   useEffect(() => {
@@ -181,16 +200,10 @@ function InfraSelector({ label, color, onChange, TH, excludeSiteId = "", exclude
         const slotList = r.data || [];
         if (slotList.length === 0) return;
 
-        // Récupérer les ports et câbles existants
-        const [portsRes, cablesRes] = await Promise.all([
-          supabase.from("ports").select("slot_id, statut").eq("odf_id", odf),
-          supabase.from("cables_fibre").select("port_source_id, port_dest_id")
-        ]);
+        // Récupérer les câbles existants
+        const cablesRes = await supabase.from("cables_fibre").select("port_source_id, port_dest_id");
 
         const occupiedSlots = new Set();
-        (portsRes.data || []).forEach(p => {
-          if (p.statut !== 'LIBRE') occupiedSlots.add(p.slot_id);
-        });
         (cablesRes.data || []).forEach(c => {
           if (c.port_source_id) occupiedSlots.add(c.port_source_id.slice(0, -3));
           if (c.port_dest_id) occupiedSlots.add(c.port_dest_id.slice(0, -3));
@@ -651,7 +664,7 @@ export default function OdfConnectView({ t, TH }) {
 
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "20px", marginBottom: "20px" }}>
               <Section title="📤 Source" TH={TH}>
-                <InfraSelector label="Site source" color={TH.green} onChange={setSrc} TH={TH} connType={connType} />
+                <InfraSelector label="Site source" color={TH.green} onChange={setSrc} TH={TH} connType={connType} typeLien={mode === "externe" ? "EXTERNE" : "INTERNE"} />
               </Section>
               <Section title="📥 Destination" TH={TH}>
                 <InfraSelector
@@ -663,6 +676,7 @@ export default function OdfConnectView({ t, TH }) {
                   excludeSalleId={mode === "intersalle" ? src.salle : ""}
                   forcedSiteId={mode === "intersalle" ? src.site : ""}
                   connType={connType}
+                  typeLien={mode === "externe" ? "EXTERNE" : "INTERNE"}
                 />
               </Section>
             </div>
