@@ -94,7 +94,7 @@ export default function App() {
   }
 
   const VIEWS = {
-    dashboard: <Dashboard t={t} TH={TH} />,
+    dashboard: <Dashboard1234 t={t} TH={TH} />,
     search: <SearchView t={t} TH={TH} />,
     manage: <ManageInfra t={t} TH={TH} />,
     odfConnect: <OdfConnectView t={t} TH={TH} />,
