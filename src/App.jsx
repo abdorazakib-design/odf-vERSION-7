@@ -2,6 +2,7 @@
 // Clean modularized App.jsx entry point
 
 import React, { useState, useEffect } from "react";
+import { SpeedInsights } from "@vercel/speed-insights/react";
 import { THEMES, T, BASE_CSS } from "./components/common/Theme.js";
 import { Spinner } from "./components/common/UI.jsx";
 import { supabase, getSession, signOut, getPortsFlat } from "./supabase.js";
@@ -132,6 +133,7 @@ export default function App() {
           {VIEWS[view]}
         </div>
       </div>
+      <SpeedInsights />
     </div>
   );
 }
