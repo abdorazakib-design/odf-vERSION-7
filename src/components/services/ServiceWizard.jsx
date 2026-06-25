@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from "react";
-import { supabase, getTransitData, getSalleIdsForPorts, createService, addServiceJonctions, addHistory } from "../../supabase.js";
+import { supabase, getTransitData } from "../../supabase.js";
 import { Modal } from "../common/UI.jsx";
 import { useRouteGraph, findBestInternalPort, genCid } from "./routingEngine.js";
 
@@ -333,33 +333,24 @@ export function ServiceWizard({ open, onClose, onDone, sites, cables, fournisseu
     setStep("CONFIRM");
   };
 
-  const getOrCreateTransitJar = async (siteTransit, p1, p2, typeLien = 'JARRETIERE') => {
-    // Sécurité : ne jamais insérer une jarretière où source = destination
+  // Décrit une jarretière de transit (cordon de brassage interne) à créer.
+  // La création réelle du câble est déléguée au RPC atomique pour rester
+  // dans la même transaction que le service (évite les câbles/ports orphelins).
+  const buildTransitJar = (siteTransit, p1, p2, typeLien = 'JARRETIERE') => {
+    // Sécurité : ne jamais créer une jarretière où source = destination
     if (!p1 || !p2 || p1 === p2) return null;
 
-    const prefix = 'JAR';
-    const jarRef = `${prefix}-${siteTransit}-${p1.split('_').pop()}-${p2.split('_').pop()}`;
+    const jarRef = `JAR-${siteTransit}-${p1.split('_').pop()}-${p2.split('_').pop()}`;
     const nom = `Câble interne ${siteTransit} : ${p1.split('_').pop()} ↔ ${p2.split('_').pop()}`;
 
-    const { data: existingJar } = await supabase.from('cables_fibre')
-      .select('id').eq('cable_reference', jarRef).maybeSingle();
-
-    if (existingJar) {
-      return existingJar.id;
-    }
-
-    const { data: newJar, error: jarErr } = await supabase.from('cables_fibre').insert({
-      cable_reference: jarRef,
-      nom: nom,
-      type_lien: typeLien,
-      port_source_id: p1,
-      port_dest_id: p2,
-      capacite_totale_gbps: 0,
-      capacite_disponible_gbps: 0,
-    }).select('id').single();
-
-    if (jarErr) throw jarErr;
-    return newJar.id;
+    return {
+      cable_id: null,
+      jar_ref: jarRef,
+      jar_nom: nom,
+      jar_type: typeLien,
+      port_entree_id: p1,
+      port_sortie_id: p2,
+    };
   };
 
   const onConfirm = async () => {
@@ -377,23 +368,6 @@ export function ServiceWizard({ open, onClose, onDone, sites, cables, fournisseu
           throw new Error(`La connexion locale iODF sur le site de transit ${siteName(pathSites[i])} est manquante (étape ${i + 1}). Sélectionnez un port de brassage interne.`);
         }
       }
-
-      const transitPortIds = [];
-      for (let i = 1; i < hops.length; i++) {
-        const portIn = hops[i - 1]?.portSortie;
-        const portMid = hops[i]?.portTransitMid;
-        const portOut = hops[i]?.portEntree;
-        if (portIn) transitPortIds.push(portIn);
-        if (portMid) transitPortIds.push(portMid);
-        if (portOut) transitPortIds.push(portOut);
-      }
-      const salleMap = transitPortIds.length > 0
-        ? await getSalleIdsForPorts([...new Set(transitPortIds)])
-        : {};
-
-      const linkType = (pa, pb) => {
-        return 'JARRETIERE';
-      };
 
       const cid = genCid();
       const primaryHop = hops[0];
@@ -413,44 +387,18 @@ export function ServiceWizard({ open, onClose, onDone, sites, cables, fournisseu
           if (portTransitIn && portTransitMid && hop.portEntree) {
             // Jarretière 1 : port d'arrivée → port de brassage interne
             if (portTransitIn !== portTransitMid) {
-              const type1 = linkType(portTransitIn, portTransitMid);
-              const jar1Id = await getOrCreateTransitJar(siteTransit, portTransitIn, portTransitMid, type1);
-              if (jar1Id) {
-                jonctions.push({
-                  ordre: ordre++,
-                  cable_id: jar1Id,
-                  port_entree_id: portTransitIn,
-                  port_sortie_id: portTransitMid,
-                });
-              }
+              const jar1 = buildTransitJar(siteTransit, portTransitIn, portTransitMid);
+              if (jar1) jonctions.push({ ordre: ordre++, ...jar1 });
             }
 
             // Jarretière 2 : port de brassage interne → port de départ vers site suivant
             if (portTransitMid !== hop.portEntree) {
-              const type2 = linkType(portTransitMid, hop.portEntree);
-              const jar2Id = await getOrCreateTransitJar(siteTransit, portTransitMid, hop.portEntree, type2);
-              if (jar2Id) {
-                jonctions.push({
-                  ordre: ordre++,
-                  cable_id: jar2Id,
-                  port_entree_id: portTransitMid,
-                  port_sortie_id: hop.portEntree,
-                });
-              }
+              const jar2 = buildTransitJar(siteTransit, portTransitMid, hop.portEntree);
+              if (jar2) jonctions.push({ ordre: ordre++, ...jar2 });
             }
-          } else if (portTransitIn && !portTransitMid && portTransitIn !== hop.portEntree) {
-            if (portTransitIn && hop.portEntree) {
-              const typeF = linkType(portTransitIn, hop.portEntree);
-              const jarId = await getOrCreateTransitJar(siteTransit, portTransitIn, hop.portEntree, typeF);
-              if (jarId) {
-                jonctions.push({
-                  ordre: ordre++,
-                  cable_id: jarId,
-                  port_entree_id: portTransitIn,
-                  port_sortie_id: hop.portEntree,
-                });
-              }
-            }
+          } else if (portTransitIn && !portTransitMid && portTransitIn !== hop.portEntree && hop.portEntree) {
+            const jarF = buildTransitJar(siteTransit, portTransitIn, hop.portEntree);
+            if (jarF) jonctions.push({ ordre: ordre++, ...jarF });
           }
         }
 
@@ -462,11 +410,13 @@ export function ServiceWizard({ open, onClose, onDone, sites, cables, fournisseu
         });
       }
 
-      // Appel de l'insertion et propagation atomique en base de données via RPC
-      const { data: rpcData, error: rpcErr } = await supabase.rpc(
+      // Appel de l'insertion et propagation atomique en base de données via RPC.
+      // p_service_id est laissé à null : le RPC dérive l'id du CID dédupliqué
+      // afin d'éviter toute collision de clé primaire (CID à la seconde près).
+      const { error: rpcErr } = await supabase.rpc(
         "create_service_with_jonctions_atomic",
         {
-          p_service_id: cid,
+          p_service_id: null,
           p_cid: cid,
           p_label: label.trim(),
           p_cable_id: primaryHop.cableId,
