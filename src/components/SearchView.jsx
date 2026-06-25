@@ -7,7 +7,7 @@ import { Breadcrumbs } from "./search/Breadcrumbs.jsx";
 import { ExplorerCards } from "./search/ExplorerCards.jsx";
 import { PortTable } from "./search/PortTable.jsx";
 
-export default function SearchView({ TH }) {
+export default function SearchView({ t, TH }) {
   // Cascading states
   const [sites, setSites] = useState([]);
   const [salles, setSalles] = useState([]);

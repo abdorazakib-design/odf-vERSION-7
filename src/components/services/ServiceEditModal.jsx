@@ -1,18 +1,9 @@
 import React from "react";
-import { Modal, Btn } from "../common/UI.jsx";
+import { Modal, Btn, Field } from "../common/UI.jsx";
 
 // ═══════════════════════════════════════════════════════════════════════════
 // SERVICE EDIT MODAL — modal d'édition d'un service
 // ═══════════════════════════════════════════════════════════════════════════
-
-export function Field({ label, children, TH }) {
-  return (
-    <div>
-      <label style={{ display: "block", color: TH.text2, fontSize: "11px", fontWeight: 600, marginBottom: "5px" }}>{label}</label>
-      {children}
-    </div>
-  );
-}
 
 export function ServiceEditModal({
   editingService,

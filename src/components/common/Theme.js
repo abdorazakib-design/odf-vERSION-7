@@ -59,7 +59,7 @@ export const THEMES = {
 // ═══════════════════════════════════════════════════════════════════════════
 export const T = {
   fr: {
-    appName: "ODF Manager", appSub: "Omega Tech &&&· Djibouti Telecom",
+    appName: "ODF Manager", appSub: "Omega Tech · Djibouti Telecom",
     login: "Connexion", logout: "Déconnexion",
     email: "Email", password: "Mot de passe", signin: "Se connecter",
     dashboard: "Tableau de bord", search: "Recherche", searchPlaceholder: "Rechercher…",
@@ -87,7 +87,7 @@ export const T = {
     selectSlot: "Sélectionner un slot",
     allSites: "Tous les sites", allStatuses: "Tous les statuts",
     portDrawerTitle: "Détails du port", close: "Fermer",
-    infraTabs: ["Sites", "Salles", "Racks", "ODFs", "Slots", "🔗 Connexions"],
+    infraTabs: ["Sites", "Salles", "Racks", "ODFs", "Slots"],
     welcome: "Bienvenue",
   },
   en: {

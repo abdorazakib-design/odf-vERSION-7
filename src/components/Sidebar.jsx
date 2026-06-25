@@ -51,7 +51,7 @@ export default function Sidebar({
                 letterSpacing: "-0.2px", 
                 lineHeight: 1.2
               }}>
-              ODF Manager <span style={{ color: "#3B82F6" }}>V6</span>
+              ODF Manager <span style={{ color: "#3B82F6" }}>V7</span>
             </div>
             {user && (
               <div style={{
@@ -137,7 +137,7 @@ export default function Sidebar({
                   {t[key]}
                 </span>
               )}
-              {key === "alerts" && alertCount > 0 && (
+              {key === "dashboard" && alertCount > 0 && (
                 <span style={{
                   background: "#EF4444", 
                   color: "#fff", 

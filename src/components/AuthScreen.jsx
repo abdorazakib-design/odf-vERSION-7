@@ -1,11 +1,7 @@
 import React, { useState } from "react";
 import { signIn } from "../supabase.js";
 import { Inp, Btn } from "./common/UI.jsx";
-
-export const DEMO_USERS = [
-  { email: "admin@demo.dj", password: "admin123", name: "Administrateur", role: "admin" },
-  { email: "tech@demo.dj",  password: "tech123",  name: "Technicien",     role: "technicien" },
-];
+import { DEMO_USERS } from "../utils/constants.js";
 
 export default function AuthScreen({
   lang, 
@@ -24,7 +20,7 @@ export default function AuthScreen({
   const doLogin = async () => {
     setLoading(true); 
     setError("");
-    const demo = DEMO_USERS.find(u => u.email === email && u.password === password);
+    const demo = DEMO_USERS.find(u => u.email === email && u.pass === password);
     if (demo) { 
       onLogin(demo); 
       setLoading(false); 

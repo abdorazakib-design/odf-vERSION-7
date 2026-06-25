@@ -1,6 +1,6 @@
 {
-  "name": "odf-manager-v5",
-  "version": "5.0.0",
+  "name": "odf-manager-v7",
+  "version": "7.0.0",
   "private": true,
   "scripts": {
     "dev": "vite",

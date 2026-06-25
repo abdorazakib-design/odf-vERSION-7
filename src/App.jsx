@@ -1,4 +1,4 @@
-// ODF Manager V6 — Omega Tech · Djibouti Telecom
+// ODF Manager V7 — Omega Tech · Djibouti Telecom
 // Clean modularized App.jsx entry point
 
 import React, { useState, useEffect } from "react";
@@ -94,7 +94,7 @@ export default function App() {
   }
 
   const VIEWS = {
-    dashboard1234: <Dashboard1234 t={t} TH={TH} />,
+    dashboard: <Dashboard t={t} TH={TH} />,
     search: <SearchView t={t} TH={TH} />,
     manage: <ManageInfra t={t} TH={TH} />,
     odfConnect: <OdfConnectView t={t} TH={TH} />,
@@ -102,7 +102,7 @@ export default function App() {
   };
 
   const VIEW_TITLES = {
-    dashboard1234: t.dashboard1234,
+    dashboard: t.dashboard,
     search: t.search,
     manage: t.manage,
     odfConnect: t.odfConnect,
@@ -126,7 +126,7 @@ export default function App() {
         onLogout={doLogout}
         alertCount={alertCount}
       />
-      <div style={{ flex: 1, display: "flex", flexTriangle: "column", flexDirection: "column", overflow: "hidden" }}>
+      <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
         <Topbar title={VIEW_TITLES[view]} t={t} TH={TH} />
         <div style={{ flex: 1, overflow: "hidden" }}>
           {VIEWS[view]}
