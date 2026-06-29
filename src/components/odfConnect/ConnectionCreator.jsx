@@ -60,16 +60,23 @@ export function ConnectionCreator({
     setErr(""); setSuccess("");
   }, [mode, connType]);
 
-  // Auto-générer la référence câble
+  // Auto-générer la référence câble au format : ALP-BET/S1_R1_ODF7-S1_R1_ODF5
   useEffect(() => {
     if (src.site) {
-      const targetSite = mode === "intersalle" ? src.site : dst.site;
-      if (targetSite) {
-        const type = mode === "externe" ? "CBL" : "JAR";
-        setCableRef(`${type}-${src.site}-${targetSite}-${String(Date.now()).slice(-4)}`);
+      const dstSite = mode === "intersalle" ? src.site : dst.site;
+      if (dstSite) {
+        let ref = `${src.site}-${dstSite}`;
+        const srcPath = [src.salleName, src.rackName, src.odfName].filter(Boolean).join("_");
+        const dstPath = [dst.salleName, dst.rackName, dst.odfName].filter(Boolean).join("_");
+        if (srcPath && dstPath) {
+          ref += `/${srcPath}-${dstPath}`;
+        } else if (srcPath) {
+          ref += `/${srcPath}`;
+        }
+        setCableRef(ref);
       }
     }
-  }, [src.site, dst.site, mode]);
+  }, [src.site, dst.site, src.salleName, src.rackName, src.odfName, dst.salleName, dst.rackName, dst.odfName, mode]);
 
   const canCreate = connType === "odf"
     ? src.odf && dst.odf && src.odf !== dst.odf
@@ -149,7 +156,7 @@ export function ConnectionCreator({
             throw new Error(`Aucun port libre disponible dans le slot source ${sSlotName} ou sa destination correspondante.`);
           }
 
-          const subRef = src.selectedSlots.length > 1 ? `${cableRef}-${sSlotName}` : cableRef;
+          const subRef = `${cableRef}-${sSlotName}`;
 
           const { error: cabErr } = await createCable({
             cable_reference: subRef,

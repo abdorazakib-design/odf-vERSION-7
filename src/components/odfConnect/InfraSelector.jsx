@@ -287,9 +287,17 @@ export function InfraSelector({
     }
   }, [odf, connType]);
 
-  // Notifier le parent
+  // Notifier le parent (avec les noms pour la nomenclature de référence)
   useEffect(() => {
-    onChange({ site, salle, rack, odf, selectedSlots });
+    const rackObj = racks.find(r => r.id === rack);
+    const salleObj = salles.find(s => s.id === salle);
+    const odfObj = odfs.find(o => o.id === odf);
+    onChange({
+      site, salle, rack, odf, selectedSlots,
+      salleName: salleObj?.name || rackObj?.salles?.name || "",
+      rackName: rackObj?.name || "",
+      odfName: odfObj?.name || "",
+    });
   }, [site, salle, rack, odf, selectedSlots]);
 
   const filteredSitesList = sites.filter(s => s.id !== excludeSiteId);
